@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>מחשבון תאריכים צהר</title>
+	<link rel="icon" type="image/x-icon" href="https://upload.wikimedia.org/wikipedia/he/c/c4/%D7%9C%D7%95%D7%92%D7%95_%D7%A6%D7%94%D7%A8.png">
+    <script>
+        async function ldToHd(date) {   //תאריך לועזי לתאריך עברי
+            let urlText = 'https://www.hebcal.com/converter?cfg=json&date=';
+            urlText += date + "&g2h=1&strict=1";
+            let response = await fetch(urlText);
+            let data = await response.json();
+            let res = data['hebrew'];
+            return res;
+        }
+        async function hdToId(hy, hm, hd) {   //תאריך עברי לתאריך לועזי
+            let urlText = 'https://www.hebcal.com/converter?cfg=json&hy=';
+            urlText += hy + '&hm=' + hm + '&hd=' + hd + '&h2g=1&strict=1';
+            let response = await fetch(urlText);
+            let data = await response.json();
+            let res = data["gy"] + '-' + data["gm"] + '-' + data["gd"];
+            return res;
+        }
+
+        async function cheack() {
+            const inp = document.getElementById('textInput').value;
+            if(inp === '') document.getElementById('inputErrorMsg').innerHTML = 'אין קלט';
+            else if(inp == 42) document.getElementById('outputDiv').innerHTML = '<h1 class ="outText">אל תשכח את המגבת שלך!</h1>';
+            else if(inp == 'a113' || inp == 'A113' || inp == 'pixar') document.getElementById('outputDiv').innerHTML = '<h1 class ="outText">גם אני אוהב את פיקסאר!</h1>';
+            else if(inp[0] <= '9' && inp[0] >= '0'){
+                const inpG = textInputBreakerL();
+                const gy = inpG['y'];
+                const gm = inpG['m'];
+                const gd = inpG['d'];
+                const startGD = (gd < 10 ? '0' + gd : gd) + "." + (gm < 10 ? '0' + gm : gm) + "." + gy;
+                const starthD = await ldToHd(gy + '-' + (gm < 10 ? '0' + gm : gm) + '-' + (gd < 10 ? '0' + gd : gd));
+                const endGD = await getDateAfterDays(gy + '-' + gm + '-' + gd);
+                const endHD = await ldToHd(endGD);
+                await fillOutput(starthD, startGD, fixGd(endGD), endHD);
+            }
+            else{
+                const inpH = textInputBreakerH();
+                const hy = inpH['y'];
+                const hm = inpH['m'];
+                const hd = inpH['d'];
+                const temp = await breakGd(await hdToId(hy, hm, hd));
+                const startGD = (temp['d'] < 10 ? '0' + temp['d'] : temp['d']) + '-' + (temp['m'] < 10 ? '0' + temp['m'] : temp['m']) + '-' + temp['y'];
+                console.log(startGD);
+                const starthD = await ldToHd(startGD);
+                const endGD = await getDateAfterDays(startGD);
+                const endHD = await ldToHd(endGD);
+                await fillOutput(starthD, fixGd(startGD), fixGd(endGD), endHD);
+            }
+        }
+
+        function breakGd(date){
+            const spl = date.split("-");
+            const res = {
+                d : spl[0],
+                m : spl[1],
+                y : spl[2]
+            }
+            return res;
+        }
+
+        function fixGd(date){
+            newDate = breakGd(date);
+            return newDate['y'] + '.' + newDate['m'] + '.' + newDate['d'];
+        }
+
+        function getDateAfterDays(inputDate) {   //הוספת 280 ימים
+            const dayOffset = 280;
+            var date = new Date(inputDate); // Convert inputDate to a Date object
+
+            // Add 280 days to the input date
+            date.setDate(date.getDate() + dayOffset);
+
+            var year = date.getFullYear();
+            var month = date.getMonth() + 1; // Months are zero-based, so add 1
+            var day = date.getDate();
+
+            // Format the date as YYYY-MM-DD
+            var formattedDate = year + '-' + (month < 10 ? '0' + month : month) + '-' + (day < 10 ? '0' + day : day);
+
+            return formattedDate;
+        }
+
+        function fillOutput(starthD, startGD, endGD, endHD) {
+            const p1 = "<h1 class =\"outText\">", p2 = "</h1>";
+            const res = p1 + "תאריך חתונה עברי: " + starthD + p2 +
+                p1 + "תאריך חתונה לועזי: " + startGD + p2 +
+                p1 + "תאריך לידה עברי משוער: " + endHD + p2 +
+                p1 + "תאריך לידה לועזי משוער: " + endGD + p2;
+            document.getElementById('outputDiv').innerHTML = res;
+            document.getElementById('textInput').value = '';
+        }
+
+        function textInputBreakerH() {
+            document.getElementById('inputErrorMsg').innerHTML = '';
+            const inp = document.getElementById('textInput').value;
+            let d, m, y;
+            const inparr = inp.split(" ");
+            let is4;
+            if (inparr.length === 3) {
+                is4 = false;
+                d = inparr[0];
+                m = inparr[1];
+                y = inparr[2];
+            }
+            else if (inparr.length === 4) {
+                is4 = true;
+                d = inparr[0];
+                m = inparr[1] + inparr[2];
+                m = m.replace("'", '');
+                y = inparr[3];
+            }
+            else {
+                document.getElementById('inputErrorMsg').innerHTML = 'קלט שגוי';
+                return;
+            }
+
+            d = d.replace('"', '');
+            d = d.replace("'", '');
+            if (m.startsWith("ב")) m = m.substring(1);
+            y = y.replace('"', '');
+            if (y.startsWith("ה")) y = y.substring(1);
+
+            d = cheackDay(d);
+            if(d === -1){
+                document.getElementById('inputErrorMsg').innerHTML = 'הערך -' + inparr[0] + '- אינו יום תקין';
+                return;
+            }
+
+            m = convertMonth(m);
+            if(m == undefined){
+                document.getElementById('inputErrorMsg').innerHTML = 'הערך -' + (is4 ? inparr[1] + inparr[2] : inparr[1]) + '- אינו חודש תקין';
+                return;
+            }
+
+            y = cheackYear(y);
+            if(y === -1){
+                document.getElementById('inputErrorMsg').innerHTML = 'הערך -' + inparr[(is4 ? 3 : 2)] + '- אינו שנה תקינה';
+                return;
+            }
+            
+            const res = {
+                d : d,
+                m : m,
+                y : y
+            };
+            return res;
+        }
+
+        function textInputBreakerL() {
+            document.getElementById('inputErrorMsg').innerHTML = '';
+            let inp = document.getElementById('textInput').value;
+            inp = inp.replaceAll('.', '-');
+            inp = inp.replaceAll('/', '-');
+            inp = inp.replaceAll('\\', '-');
+            const inparr = inp.split("-");
+            if(inparr.length != 3){
+                document.getElementById('inputErrorMsg').innerHTML = 'קלט שגוי';
+                return;
+            }
+            const d = inparr[0];
+            let m = inparr[1];
+            let y = inparr[2];
+
+            if(d < 1 || d > 31){
+                document.getElementById('inputErrorMsg').innerHTML = 'הערך -' + inparr[0] + '- אינו יום תקין';
+                return;
+            }
+            if(m < 1 || m > 12){
+                document.getElementById('inputErrorMsg').innerHTML = 'הערך -' + inparr[1] + '- אינו חודש תקין';
+                return;
+            }
+            if(y.length == 2){
+                if(y > 60) y = 19 + y;
+                else y = 20 + y;
+            }
+            else if(y.length != 4){
+                document.getElementById('inputErrorMsg').innerHTML = 'הערך -' + inparr[1] + '- אינו שנה תקינה';
+                return;
+            }
+			
+			if(m[0] == 0) m = m[1];
+            const res = {
+                d : d,
+                m : m,
+                y : y
+            };
+            return res;
+        }
+
+        function cheackDay(d){
+            if(d.length === 1){
+                d = gimatria(d);
+                if(d == undefined || d > 30) return -1;
+                return d;
+            }
+            else{
+                const temp = gimatria(d[0]);
+                if(temp == undefined || temp < 9 || temp > 20) return -1;
+                const temp1 = gimatria(d[1]);
+                if(temp1 == undefined || temp1 > 9) return -1;
+                return temp + temp1;
+            }
+        }
+
+        function cheackYear(y){
+            if(y.length === 3){
+                const l1 = gimatria(y[0]);
+                const l2 = gimatria(y[1]);
+                const l3 = gimatria(y[2]);
+                if(l1 == undefined || l2 == undefined || l3 == undefined || l1 != 400 || l2 < 100 || l3 > 90) return -1;
+                return l1 +l2 +l3 + 5000;
+            }
+            else if(y.length === 4){
+                const l1 = gimatria(y[0]);
+                const l2 = gimatria(y[1]);
+                const l3 = gimatria(y[2]);
+                const l4 = gimatria(y[3]);
+                if(l1 == undefined || l2 == undefined || l3 == undefined || l4 == undefined || l1 != 400 || l2 < 100 || l3 > 90 || l3 < 10 || l4 > 9) return -1;
+                return l1 +l2 +l3 + l4 + 5000;
+            }
+                return -1;
+        }
+
+        function convertMonth(month){
+            const dic = {
+                תשרי : "Tishrei",
+                חשוון : "Cheshvan",
+                כסלו : "Kislev",
+                טבט : "Tevet",
+                שבט : "Shvat",
+                אדר : "Adar",
+                אדרא : "Adar1",
+                אדרב : "Adar2",
+                ניסן : "Nisan",
+                אייר : "Iyyar",
+                סיוון : "Sivan",
+                תמוז : "Tamuz",
+                אב : "Av",
+                אלול : "Elul"
+            };
+            return dic[month];
+        }
+
+        function gimatria(letter){
+            const dic = {
+                א : 1,
+                ב : 2,
+                ג : 3,
+                ד : 4,
+                ה : 5,
+                ו : 6,
+                ז : 7,
+                ח : 8,
+                ט : 9,
+                י : 10,
+                כ : 20,
+                ל : 30,
+                מ : 40,
+                נ : 50,
+                ס : 60,
+                ע : 70,
+                פ : 80,
+                צ : 90,
+                ק : 100,
+                ר : 200,
+                ש : 300,
+                ת : 400
+            }
+            return dic[letter];
+        }
+
+        function clearError(){
+            document.getElementById('inputErrorMsg').innerHTML = ''; 
+        }
+
+        addEventListener("keypress", function(event) {
+            if (event.key === "Enter") cheack();
+        });
+
+    </script>
+    <style>
+        body {
+            background-image: linear-gradient(#fff, #99f);
+            background-repeat: no-repeat;
+            height: 100vh;
+        }
+
+        select {
+            direction: rtl;
+        }
+        input {
+            direction: rtl;
+            position: absolute;
+            width: 50vw;
+            height: 4vw;
+            left: 25vw;
+            top: 5vw;
+            border-style: solid;
+            border-radius: 100vw;
+            border-width: 0.5vw;
+            border-color: #004;
+            font-size: 3vw;
+            font-weight: bolder;
+            text-align: center;
+            font-family:unset;
+        }
+
+        #outputDiv {
+            direction: rtl;
+            position: absolute;
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            top: 20vw;
+            right: 10vw;
+        }
+
+        .outText {
+            color: #004;
+            direction: rtl;
+            font-size: 3vw;
+        }
+
+        #inputErrorMsg{
+            top: 0;
+            margin: 0;
+            padding: 0;
+            direction: rtl;
+            color: #f00;
+            font-size: 2vw;
+            text-align: center;
+
+        }
+
+        #divErorMsg{
+            position: absolute;
+            width: 50vw;
+            left: 25vw;
+            top: 10vw;
+            margin: 0;
+            padding: 0;
+
+        }
+
+        #logo{
+            width: 10vw;
+            margin: 2vw;
+        }
+
+        #ok{
+            position: absolute;
+            width: 10vw;
+            height: 5vw;
+            left: 45vw;
+            top: 15vw;
+            border-style: solid;
+            border-radius: 100vw;
+            border-width: 0.5vw;
+            border-color: #004;
+            font-size: 3vw;
+            font-weight: bolder;
+            text-align: center;
+            color: #004;
+            background-color: #bdb;
+            font-family:unset;
+        }
+
+        #ok:hover{
+            background-color: #fc7;
+            cursor: pointer;
+        }
+
+        #credit{
+            position: absolute;
+            direction: rtl;
+            right: 1vw;
+            bottom: 0;
+        }
+        #api{
+            position: absolute;
+            left: 1vw;
+            bottom: 0;
+        }
+
+    </style>
+</head>
+
+<body>
+    <img id="logo" src="https://upload.wikimedia.org/wikipedia/he/c/c4/%D7%9C%D7%95%D7%92%D7%95_%D7%A6%D7%94%D7%A8.png">
+    <input id="textInput" placeholder="מה התאריך?" autofocus onchange="clearError()">
+    <div id="divErorMsg">
+        <h4 id="inputErrorMsg"></h4>
+    </div>
+    <button id="ok" onclick="cheack()">אישור</button>
+    <div id="outputDiv">    
+    </div>
+    <h5 id="credit">נוצר על ידי איתן גוטליב</h5>
+    <h5 id="api">Hebrew Date Converter REST API: https://www.hebcal.com/home/219/hebrew-date-converter-rest-api</h5>
+</body>
+
+</html>
